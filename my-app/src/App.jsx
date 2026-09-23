@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import './navigation.css'
+import './accessibility.css'
+import './weather-voice.css'
+import './mobile-weather-voice.css'
 
 const WEATHER_TYPES = {
   clear: { label: 'Clear sky', icon: '☀️', theme: 'sunny' },
@@ -38,10 +41,10 @@ function getLocationName(place) {
 
 function getSpeechText(weather, language) {
   if (language === 'ta-IN') {
-    return `நீங்கள் தற்போது ${weather.location.city}, ${weather.location.region || 'இந்தியாவில்'} இருக்கிறீர்கள். தற்போதைய வெப்பநிலை ${Math.round(weather.temperature)} டிகிரி செல்சியஸ். வானிலை ${weather.type.label === 'Clear sky' ? 'தெளிவாக' : weather.type.label === 'Partly cloudy' ? 'ஓரளவு மேகமூட்டமாக' : 'மாற்றத்துடன்'} உள்ளது. காற்றின் வேகம் மணிக்கு ${Math.round(weather.wind)} கிலோமீட்டர்.`
+    return `நீங்கள் தற்போது ${weather.location.city}, ${weather.location.region || 'இந்தியாவில்'} இருக்கிறீர்கள். தற்போதைய வெப்பநிலை ${Math.round(weather.temperature)} டிகிரி செல்சியஸ். வானிலை ${weather.type.label === 'Clear sky' ? 'தெளிவாக' : weather.type.label === 'Partly cloudy' ? 'ஓரளவு மேகமூட்டமாக' : 'மாற்றத்துடன்'} உள்ளது. காற்றின் வேகம் மணிக்கு ${Math.round(weather.wind)} கிலோமீட்டர். மழைக்கான வாய்ப்பு ${Math.round(weather.rainChance)} சதவீதம்.`
   }
 
-  return `Your current location is ${weather.location.city}${weather.location.region ? `, ${weather.location.region}` : ''}. The current temperature is ${Math.round(weather.temperature)} degrees Celsius. The weather is ${weather.type.label.toLowerCase()}. The wind speed is ${Math.round(weather.wind)} kilometers per hour.`
+  return `Your current location is ${weather.location.city}${weather.location.region ? `, ${weather.location.region}` : ''}. The current temperature is ${Math.round(weather.temperature)} degrees Celsius. The weather is ${weather.type.label.toLowerCase()}. The wind speed is ${Math.round(weather.wind)} kilometers per hour. The chance of rain is ${Math.round(weather.rainChance)} percent, with ${Math.round(weather.rain)} millimeters of rain currently measured.`
 }
 
 function LocationCard({ weather, onRefresh }) {
@@ -67,6 +70,7 @@ function CurrentWeather({ weather }) {
         <p>Feels like {Math.round(weather.feelsLike)}° · {weather.isDay ? 'Daylight' : 'Night'} conditions</p>
       </div>
       <div className="weather-orbit"><div className="weather-icon">{weather.type.icon}</div><span>{weather.type.label}</span></div>
+      <button className={`tell-more-button ${weather.speaking ? 'is-speaking' : ''}`} type="button" onClick={weather.onToggleSpeak} aria-label="Speak weather summary" aria-pressed={weather.speaking}><span className="tell-more-icon" aria-hidden="true">{weather.speaking ? '■' : '◉'}</span><strong>{weather.speaking ? 'Stop speaking' : 'Speak weather'}</strong><small>{weather.speaking ? 'Tap to stop' : 'Tap to hear'}</small></button>
     </section>
   )
 }
@@ -75,7 +79,7 @@ function WeatherDetails({ weather }) {
   const details = [
     { icon: '💨', label: 'Wind speed', value: `${Math.round(weather.wind)} km/h`, tone: 'blue' },
     { icon: '💧', label: 'Humidity', value: `${Math.round(weather.humidity)}%`, tone: 'teal' },
-    { icon: '🌧️', label: 'Rain chance', value: `${Math.round(weather.rain)} mm`, tone: 'violet' },
+    { icon: '🌧️', label: 'Rain chance', value: `${Math.round(weather.rainChance)}%`, tone: 'violet' },
     { icon: '☼', label: 'UV index', value: weather.uv == null ? '—' : `${Math.round(weather.uv)}`, tone: 'amber' },
   ]
   return <section className="details-grid">{details.map((detail) => <article className={`detail-card panel ${detail.tone}`} key={detail.label}><span className="detail-icon">{detail.icon}</span><div><span>{detail.label}</span><strong>{detail.value}</strong></div></article>)}</section>
@@ -108,12 +112,13 @@ function AboutSection() {
 
 function VoiceControls({ language, setLanguage, onSpeak, onStop, speaking, available, needsInteraction }) {
   return (
-    <section className="voice-card panel">
-      <div className="voice-title"><span className="voice-icon">◉</span><div><strong>Voice readout</strong><span>Listen to your weather summary</span></div><span className={`voice-bars ${speaking ? 'active' : ''}`}><i /><i /><i /></span></div>
-      <div className="voice-actions"><button className="primary-action" type="button" onClick={onSpeak} disabled={!available}><span>▶</span> Speak again</button><button className="secondary-action" type="button" onClick={onStop} disabled={!available}><span>■</span> Stop</button></div>
+    <section className="voice-card panel" aria-labelledby="voice-heading">
+      <div className="voice-title"><span className="voice-icon" aria-hidden="true">◉</span><div><strong id="voice-heading">Voice readout</strong><span>Listen to your weather summary</span></div><span className={`voice-bars ${speaking ? 'active' : ''}`} aria-hidden="true"><i /><i /><i /></span></div>
+      <div className="voice-actions"><button className="primary-action" type="button" onClick={onSpeak} disabled={!available} aria-label="Speak the current weather again"><span aria-hidden="true">▶</span> Speak Again</button><button className="secondary-action" type="button" onClick={onStop} disabled={!available} aria-label="Stop speaking"><span aria-hidden="true">■</span> Stop Speaking</button></div>
       <div className="language-row"><span>Speech language</span><select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="en-IN">English (India)</option><option value="ta-IN">தமிழ் (Tamil)</option></select></div>
       {!available && <small className="voice-note">Speech synthesis is not available in this browser.</small>}
-      {available && needsInteraction && <small className="voice-note">Tap Speak Again once to enable voice on this mobile browser.</small>}
+      {available && needsInteraction && <small className="voice-note" role="status">Tap Speak Again once to enable voice on this mobile browser.</small>}
+      <span className="sr-only" role="status" aria-live="polite">{speaking ? 'Weather briefing is speaking.' : 'Weather briefing is ready.'}</span>
     </section>
   )
 }
@@ -172,8 +177,13 @@ function App() {
     setSpeaking(false)
   }
 
+  const toggleFloatingSpeech = () => {
+    if (speaking) stopSpeaking()
+    else speak()
+  }
+
   const loadWeather = async (latitude, longitude, locationOverride = null) => {
-    const params = 'current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,weather_code,wind_speed_10m&hourly=uv_index&forecast_days=1&timezone=auto'
+    const params = 'current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,weather_code,wind_speed_10m&hourly=uv_index,precipitation_probability&forecast_days=1&timezone=auto'
     const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&${params}`)
     const locationResponse = locationOverride
       ? null
@@ -189,6 +199,7 @@ function App() {
       humidity: current.relative_humidity_2m,
       wind: current.wind_speed_10m,
       rain: current.rain ?? current.precipitation ?? 0,
+      rainChance: weatherData.hourly?.precipitation_probability?.[0] ?? 0,
       uv: weatherData.hourly?.uv_index?.[0],
       isDay: Boolean(current.is_day),
       type: weatherTypeFromCode(current.weather_code),
@@ -254,7 +265,7 @@ function App() {
   }, [speechAvailable])
 
   return (
-    <main className={`weather-app ${weather ? weather.type.theme : 'sunny'}`}>
+    <main className={`weather-app ${weather ? weather.type.theme : 'sunny'}`} aria-busy={status === 'loading'}>
       <div className="ambient ambient-one" /><div className="ambient ambient-two" />
       <header className="topbar"><div className="brand"><span className="brand-mark">🌤️</span><span>Sky<span>View</span><small>Your Weather Companion</small></span></div><div className="topbar-tools"><button className="moon-button" type="button" aria-label="Toggle night theme">☾</button><button className="location-button" type="button" onClick={() => fetchWeather(true)}>⌖ &nbsp; Use My Location</button></div></header>
       <div className="content-wrap">
@@ -262,7 +273,7 @@ function App() {
         {status === 'loading' && <Loading />}
         {status === 'error' && <ErrorMessage message={error} onRetry={() => fetchWeather(true)} />}
         {status === 'idle' && <section className="empty-state"><div className="empty-sun">☀</div><strong>Weather, tuned to you</strong><span>Allow location access to see your live forecast and hear a quick briefing.</span></section>}
-        {status === 'success' && weather && <div className="dashboard"><div className="main-column"><LocationCard weather={weather} onRefresh={() => fetchWeather(true)} /><CurrentWeather weather={weather} /></div><aside className="side-column"><VoiceControls language={language} setLanguage={setLanguage} onSpeak={() => speak()} onStop={stopSpeaking} speaking={speaking} available={speechAvailable} needsInteraction={speechNeedsInteraction} /><WeatherDetails weather={weather} /></aside></div>}
+        {status === 'success' && weather && <div className="dashboard"><div className="main-column"><LocationCard weather={weather} onRefresh={() => fetchWeather(true)} /><CurrentWeather weather={{ ...weather, speaking, onToggleSpeak: toggleFloatingSpeech }} /></div><aside className="side-column"><VoiceControls language={language} setLanguage={setLanguage} onSpeak={() => speak()} onStop={stopSpeaking} speaking={speaking} available={speechAvailable} needsInteraction={speechNeedsInteraction} /><WeatherDetails weather={weather} /></aside></div>}
         <Forecast weather={weather ? { ...weather, onRefresh: () => fetchWeather(true) } : null} />
         <FeatureSection />
         <AboutSection />

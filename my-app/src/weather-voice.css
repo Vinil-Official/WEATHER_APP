@@ -1,0 +1,51 @@
+.weather-orbit {
+  overflow: visible;
+}
+
+.tell-more-button {
+  position: absolute;
+  z-index: 2;
+  right: -16px;
+  bottom: -13px;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  padding: 13px;
+  border: 2px solid rgba(255, 255, 255, .65);
+  border-radius: 50%;
+  color: #ffffff;
+  background: rgba(26, 106, 172, .76);
+  box-shadow: 0 7px 22px rgba(0, 0, 0, .28), inset 0 1px 1px rgba(255, 255, 255, .25);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  transition: transform .2s, background .2s;
+}
+
+.tell-more-button span {
+  color: #bceaff;
+  font-size: 16px;
+}
+
+.tell-more-button:hover {
+  background: rgba(27, 139, 215, .92);
+  transform: scale(1.05);
+}
+
+.tell-more-button:focus-visible {
+  outline: 3px solid #ffe26b;
+  outline-offset: 4px;
+}
+
+@media (max-width: 520px) {
+  .tell-more-button {
+    right: -4px;
+    bottom: -17px;
+    width: 82px;
+    height: 82px;
+    font-size: 9px;
+  }
+}
