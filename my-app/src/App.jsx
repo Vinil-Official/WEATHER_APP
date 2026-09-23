@@ -106,13 +106,14 @@ function AboutSection() {
   return <section className="about-section" id="about"><div><span className="eyebrow">ABOUT SKYVIEW</span><h2>Simple weather, wherever you are.</h2></div><p>SkyView is a frontend-only weather companion. It uses your browser location, free public weather services, and built-in speech synthesis to give you a useful snapshot without an account.</p></section>
 }
 
-function VoiceControls({ language, setLanguage, onSpeak, onStop, speaking, available }) {
+function VoiceControls({ language, setLanguage, onSpeak, onStop, speaking, available, needsInteraction }) {
   return (
     <section className="voice-card panel">
       <div className="voice-title"><span className="voice-icon">◉</span><div><strong>Voice readout</strong><span>Listen to your weather summary</span></div><span className={`voice-bars ${speaking ? 'active' : ''}`}><i /><i /><i /></span></div>
       <div className="voice-actions"><button className="primary-action" type="button" onClick={onSpeak} disabled={!available}><span>▶</span> Speak again</button><button className="secondary-action" type="button" onClick={onStop} disabled={!available}><span>■</span> Stop</button></div>
       <div className="language-row"><span>Speech language</span><select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="en-IN">English (India)</option><option value="ta-IN">தமிழ் (Tamil)</option></select></div>
       {!available && <small className="voice-note">Speech synthesis is not available in this browser.</small>}
+      {available && needsInteraction && <small className="voice-note">Tap Speak Again once to enable voice on this mobile browser.</small>}
     </section>
   )
 }
@@ -131,19 +132,39 @@ function App() {
   const [error, setError] = useState('')
   const [language, setLanguage] = useState('en-IN')
   const [speaking, setSpeaking] = useState(false)
+  const [speechNeedsInteraction, setSpeechNeedsInteraction] = useState(false)
   const [cityQuery, setCityQuery] = useState('')
   const speechAvailable = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   const speak = (nextWeather = weather) => {
     if (!nextWeather || !speechAvailable) return
     window.speechSynthesis.cancel()
+    window.speechSynthesis.resume()
     const utterance = new SpeechSynthesisUtterance(getSpeechText(nextWeather, language))
     utterance.lang = language
     utterance.rate = 0.94
     utterance.onstart = () => setSpeaking(true)
     utterance.onend = () => setSpeaking(false)
-    utterance.onerror = () => setSpeaking(false)
-    window.speechSynthesis.speak(utterance)
+    utterance.onerror = () => {
+      setSpeaking(false)
+      setSpeechNeedsInteraction(true)
+    }
+    try {
+      window.speechSynthesis.speak(utterance)
+      setSpeechNeedsInteraction(false)
+    } catch {
+      setSpeechNeedsInteraction(true)
+    }
+  }
+
+  const primeSpeech = () => {
+    if (!speechAvailable) return
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.resume()
+    const unlockUtterance = new SpeechSynthesisUtterance('')
+    unlockUtterance.volume = 0
+    window.speechSynthesis.speak(unlockUtterance)
+    setSpeechNeedsInteraction(false)
   }
 
   const stopSpeaking = () => {
@@ -179,7 +200,8 @@ function App() {
     window.setTimeout(() => speak(nextWeather), 100)
   }
 
-  const fetchWeather = () => {
+  const fetchWeather = (primeVoice = false) => {
+    if (primeVoice) primeSpeech()
     setStatus('loading')
     setError('')
     if (!navigator.geolocation) {
@@ -200,6 +222,7 @@ function App() {
   }
 
   const searchWeather = async () => {
+    primeSpeech()
     const query = cityQuery.trim()
     if (!query) {
       fetchWeather()
@@ -233,14 +256,14 @@ function App() {
   return (
     <main className={`weather-app ${weather ? weather.type.theme : 'sunny'}`}>
       <div className="ambient ambient-one" /><div className="ambient ambient-two" />
-      <header className="topbar"><div className="brand"><span className="brand-mark">🌤️</span><span>Sky<span>View</span><small>Your Weather Companion</small></span></div><div className="topbar-tools"><button className="moon-button" type="button" aria-label="Toggle night theme">☾</button><button className="location-button" type="button" onClick={fetchWeather}>⌖ &nbsp; Use My Location</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">🌤️</span><span>Sky<span>View</span><small>Your Weather Companion</small></span></div><div className="topbar-tools"><button className="moon-button" type="button" aria-label="Toggle night theme">☾</button><button className="location-button" type="button" onClick={() => fetchWeather(true)}>⌖ &nbsp; Use My Location</button></div></header>
       <div className="content-wrap">
         <section className="hero-copy" id="weather"><div><h1>Check the <em>Weather</em></h1><p>Get real-time weather updates for any location around the world.</p></div><form className="search-bar" onSubmit={(event) => { event.preventDefault(); searchWeather() }}><span>⌖</span><input value={cityQuery} onChange={(event) => setCityQuery(event.target.value)} placeholder="Enter a city name (e.g. Chennai)" aria-label="City name" /><button className="get-weather" type="submit" disabled={status === 'loading'}><span>⌕</span>{status === 'loading' ? 'Getting Weather...' : 'Get Weather'}</button></form></section>
         {status === 'loading' && <Loading />}
-        {status === 'error' && <ErrorMessage message={error} onRetry={fetchWeather} />}
+        {status === 'error' && <ErrorMessage message={error} onRetry={() => fetchWeather(true)} />}
         {status === 'idle' && <section className="empty-state"><div className="empty-sun">☀</div><strong>Weather, tuned to you</strong><span>Allow location access to see your live forecast and hear a quick briefing.</span></section>}
-        {status === 'success' && weather && <div className="dashboard"><div className="main-column"><LocationCard weather={weather} onRefresh={fetchWeather} /><CurrentWeather weather={weather} /></div><aside className="side-column"><VoiceControls language={language} setLanguage={setLanguage} onSpeak={() => speak()} onStop={stopSpeaking} speaking={speaking} available={speechAvailable} /><WeatherDetails weather={weather} /></aside></div>}
-        <Forecast weather={weather ? { ...weather, onRefresh: fetchWeather } : null} />
+        {status === 'success' && weather && <div className="dashboard"><div className="main-column"><LocationCard weather={weather} onRefresh={() => fetchWeather(true)} /><CurrentWeather weather={weather} /></div><aside className="side-column"><VoiceControls language={language} setLanguage={setLanguage} onSpeak={() => speak()} onStop={stopSpeaking} speaking={speaking} available={speechAvailable} needsInteraction={speechNeedsInteraction} /><WeatherDetails weather={weather} /></aside></div>}
+        <Forecast weather={weather ? { ...weather, onRefresh: () => fetchWeather(true) } : null} />
         <FeatureSection />
         <AboutSection />
       </div>
