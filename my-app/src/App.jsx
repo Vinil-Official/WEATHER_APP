@@ -14,6 +14,12 @@ const WEATHER_TYPES = {
   fog: { label: 'Foggy', icon: '🌫️', theme: 'fog' },
 }
 
+const LOCATION_ALIASES = {
+  kanyakumari: { city: 'Kanyakumari', region: 'Tamil Nadu', latitude: 8.0883, longitude: 77.5385 },
+  kannyakumari: { city: 'Kanyakumari', region: 'Tamil Nadu', latitude: 8.0883, longitude: 77.5385 },
+  levinjipuram: { city: 'Levinjipuram', region: 'Thoothukudi, Tamil Nadu', latitude: 8.790673, longitude: 78.139834 },
+}
+
 function weatherTypeFromCode(code) {
   if ([0, 1].includes(code)) return WEATHER_TYPES.clear
   if ([2].includes(code)) return WEATHER_TYPES.cloudy
@@ -162,16 +168,6 @@ function App() {
     }
   }
 
-  const primeSpeech = () => {
-    if (!speechAvailable) return
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.resume()
-    const unlockUtterance = new SpeechSynthesisUtterance('')
-    unlockUtterance.volume = 0
-    window.speechSynthesis.speak(unlockUtterance)
-    setSpeechNeedsInteraction(false)
-  }
-
   const stopSpeaking = () => {
     if (speechAvailable) window.speechSynthesis.cancel()
     setSpeaking(false)
@@ -208,11 +204,9 @@ function App() {
     }
     setWeather(nextWeather)
     setStatus('success')
-    window.setTimeout(() => speak(nextWeather), 100)
   }
 
-  const fetchWeather = (primeVoice = false) => {
-    if (primeVoice) primeSpeech()
+  const fetchWeather = () => {
     setStatus('loading')
     setError('')
     if (!navigator.geolocation) {
@@ -233,7 +227,6 @@ function App() {
   }
 
   const searchWeather = async () => {
-    primeSpeech()
     const query = cityQuery.trim()
     if (!query) {
       fetchWeather()
@@ -242,6 +235,11 @@ function App() {
     setStatus('loading')
     setError('')
     try {
+      const locationAlias = LOCATION_ALIASES[query.toLowerCase()]
+      if (locationAlias) {
+        await loadWeather(locationAlias.latitude, locationAlias.longitude, { city: locationAlias.city, region: locationAlias.region })
+        return
+      }
       const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`)
       if (!response.ok) throw new Error('We could not search for that city.')
       const data = await response.json()
@@ -267,14 +265,14 @@ function App() {
   return (
     <main className={`weather-app ${weather ? weather.type.theme : 'sunny'}`} aria-busy={status === 'loading'}>
       <div className="ambient ambient-one" /><div className="ambient ambient-two" />
-      <header className="topbar"><div className="brand"><span className="brand-mark">🌤️</span><span>Sky<span>View</span><small>Your Weather Companion</small></span></div><div className="topbar-tools"><button className="moon-button" type="button" aria-label="Toggle night theme">☾</button><button className="location-button" type="button" onClick={() => fetchWeather(true)}>⌖ &nbsp; Use My Location</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">🌤️</span><span>Sky<span>View</span><small>Your Weather Companion</small></span></div><div className="topbar-tools"><button className="moon-button" type="button" aria-label="Toggle night theme">☾</button><button className="location-button" type="button" onClick={fetchWeather}>⌖ &nbsp; Use My Location</button></div></header>
       <div className="content-wrap">
         <section className="hero-copy" id="weather"><div><h1>Check the <em>Weather</em></h1><p>Get real-time weather updates for any location around the world.</p></div><form className="search-bar" onSubmit={(event) => { event.preventDefault(); searchWeather() }}><span>⌖</span><input value={cityQuery} onChange={(event) => setCityQuery(event.target.value)} placeholder="Enter a city name (e.g. Chennai)" aria-label="City name" /><button className="get-weather" type="submit" disabled={status === 'loading'}><span>⌕</span>{status === 'loading' ? 'Getting Weather...' : 'Get Weather'}</button></form></section>
         {status === 'loading' && <Loading />}
-        {status === 'error' && <ErrorMessage message={error} onRetry={() => fetchWeather(true)} />}
+        {status === 'error' && <ErrorMessage message={error} onRetry={() => cityQuery.trim() ? searchWeather() : fetchWeather()} />}
         {status === 'idle' && <section className="empty-state"><div className="empty-sun">☀</div><strong>Weather, tuned to you</strong><span>Allow location access to see your live forecast and hear a quick briefing.</span></section>}
-        {status === 'success' && weather && <div className="dashboard"><div className="main-column"><LocationCard weather={weather} onRefresh={() => fetchWeather(true)} /><CurrentWeather weather={{ ...weather, speaking, onToggleSpeak: toggleFloatingSpeech }} /></div><aside className="side-column"><VoiceControls language={language} setLanguage={setLanguage} onSpeak={() => speak()} onStop={stopSpeaking} speaking={speaking} available={speechAvailable} needsInteraction={speechNeedsInteraction} /><WeatherDetails weather={weather} /></aside></div>}
-        <Forecast weather={weather ? { ...weather, onRefresh: () => fetchWeather(true) } : null} />
+        {status === 'success' && weather && <div className="dashboard"><div className="main-column"><LocationCard weather={weather} onRefresh={fetchWeather} /><CurrentWeather weather={{ ...weather, speaking, onToggleSpeak: toggleFloatingSpeech }} /></div><aside className="side-column"><VoiceControls language={language} setLanguage={setLanguage} onSpeak={() => speak()} onStop={stopSpeaking} speaking={speaking} available={speechAvailable} needsInteraction={speechNeedsInteraction} /><WeatherDetails weather={weather} /></aside></div>}
+        <Forecast weather={weather ? { ...weather, onRefresh: fetchWeather } : null} />
         <FeatureSection />
         <AboutSection />
       </div>
