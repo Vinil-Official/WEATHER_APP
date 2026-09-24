@@ -17,7 +17,11 @@ const WEATHER_TYPES = {
 const LOCATION_ALIASES = {
   kanyakumari: { city: 'Kanyakumari', region: 'Tamil Nadu', latitude: 8.0883, longitude: 77.5385 },
   kannyakumari: { city: 'Kanyakumari', region: 'Tamil Nadu', latitude: 8.0883, longitude: 77.5385 },
-  levinjipuram: { city: 'Levinjipuram', region: 'Thoothukudi, Tamil Nadu', latitude: 8.790673, longitude: 78.139834 },
+  levinjipuram: { city: 'Levenjipuram', region: 'Kanyakumari, Tamil Nadu', latitude: 8.1872, longitude: 77.3706 },
+  levenjipuram: { city: 'Levenjipuram', region: 'Kanyakumari, Tamil Nadu', latitude: 8.1872, longitude: 77.3706 },
+  'levinjipuram kanyakumari': { city: 'Levenjipuram', region: 'Kanyakumari, Tamil Nadu', latitude: 8.1872, longitude: 77.3706 },
+  'levenjipuram kanyakumari': { city: 'Levenjipuram', region: 'Kanyakumari, Tamil Nadu', latitude: 8.1872, longitude: 77.3706 },
+  karungal: { city: 'Karungal', region: 'Kanniyakumari, Tamil Nadu', latitude: 8.2379238, longitude: 77.2413556 },
 }
 
 function weatherTypeFromCode(code) {
@@ -228,6 +232,7 @@ function App() {
 
   const searchWeather = async () => {
     const query = cityQuery.trim()
+    const normalizedQuery = query.toLowerCase().replace(/\s+/g, ' ')
     if (!query) {
       fetchWeather()
       return
@@ -235,7 +240,7 @@ function App() {
     setStatus('loading')
     setError('')
     try {
-      const locationAlias = LOCATION_ALIASES[query.toLowerCase()]
+      const locationAlias = LOCATION_ALIASES[normalizedQuery]
       if (locationAlias) {
         await loadWeather(locationAlias.latitude, locationAlias.longitude, { city: locationAlias.city, region: locationAlias.region })
         return
